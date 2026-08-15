@@ -28,6 +28,29 @@ networks:
         - subnet: 203.0.113.0/24
 
 services:
+  # Secure-by-default application: resolve once, validate that address, then connect to the exact
+  # pinned address. Its host port is loopback-only; every dependency remains unpublished.
+  secure:
+    <<: *app
+    command: ["uvicorn", "dnsrebindjack.app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+    dns:
+      - 10.10.0.53
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      resolver:
+        condition: service_healthy
+      internal-service:
+        condition: service_healthy
+      upstream:
+        condition: service_healthy
+    networks:
+      - internal_net
+      - edge
+    healthcheck:
+      <<: *health
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/healthz', timeout=2).status == 200 else 1)"]
+
   # Demo-owned controllable authoritative resolver: the app's ONLY DNS. It answers DNS on :53
   # (udp + tcp) and exposes an observation/control HTTP API on :8053. For the attacker name it
   # returns an allowed public-range address on the first (validation) lookup and an internal
@@ -81,6 +104,8 @@ services:
       internal-service:
         condition: service_healthy
       upstream:
+        condition: service_healthy
+      secure:
         condition: service_healthy
     networks:
       - internal_net
