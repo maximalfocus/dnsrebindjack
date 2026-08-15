@@ -1,0 +1,87 @@
+name: dnsrebindjack
+
+x-app: &app
+  build:
+    context: .
+  image: dnsrebindjack:dev
+
+x-health: &health
+  interval: 3s
+  timeout: 3s
+  retries: 20
+  start_period: 2s
+
+networks:
+  # Blocked private-range segment (RFC 1918) carrying the internal-only service and the demo
+  # resolver. `internal: true` => no route to the real internet.
+  internal_net:
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.10.0.0/24
+  # Allowed documentation-range segment (RFC 5737, outside every blocked range) carrying the
+  # benign upstream — a normal external target. Also `internal: true`.
+  edge:
+    internal: true
+    ipam:
+      config:
+        - subnet: 203.0.113.0/24
+
+services:
+  # Demo-owned controllable authoritative resolver: the app's ONLY DNS. It answers DNS on :53
+  # (udp + tcp) and exposes an observation/control HTTP API on :8053. For the attacker name it
+  # returns an allowed public-range address on the first (validation) lookup and an internal
+  # blocked-range address on the next (connect-time) lookup; the legitimate name is stable.
+  resolver:
+    <<: *app
+    command: ["uvicorn", "dnsrebindjack.fixtures.resolver:app", "--host", "0.0.0.0", "--port", "8053"]
+    networks:
+      internal_net:
+        ipv4_address: 10.10.0.53
+    healthcheck:
+      <<: *health
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8053/healthz', timeout=2).status == 200 else 1)"]
+
+  # Internal-only service on a blocked-range address, reachable only inside the demo network and
+  # never published to the host. Serves the synthetic INTERNAL-ONLY payload and an inbound signal
+  # ("was it contacted?").
+  internal-service:
+    <<: *app
+    command: ["uvicorn", "dnsrebindjack.fixtures.internal_service:app", "--host", "0.0.0.0", "--port", "80"]
+    networks:
+      internal_net:
+        ipv4_address: 10.10.0.9
+    healthcheck:
+      <<: *health
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost/healthz', timeout=2).status == 200 else 1)"]
+
+  # Benign upstream on an allowed documentation-range address — the one legitimate probe target.
+  upstream:
+    <<: *app
+    command: ["uvicorn", "dnsrebindjack.fixtures.upstream:app", "--host", "0.0.0.0", "--port", "80"]
+    networks:
+      edge:
+        ipv4_address: 203.0.113.20
+    healthcheck:
+      <<: *health
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost/healthz', timeout=2).status == 200 else 1)"]
+
+  # Verification boundary: runs the full ruff + mypy + pytest gate inside the container network,
+  # reaching every fixture by its address and using the demo resolver as its ONLY DNS (so the
+  # "no real DNS" and "names resolve only through the demo resolver" properties are exercised).
+  # No published ports.
+  verify:
+    <<: *app
+    command: ["sh", "scripts/gate.sh"]
+    dns:
+      - 10.10.0.53
+    depends_on:
+      resolver:
+        condition: service_healthy
+      internal-service:
+        condition: service_healthy
+      upstream:
+        condition: service_healthy
+    networks:
+      - internal_net
+      - edge
