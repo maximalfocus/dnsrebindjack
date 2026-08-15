@@ -9,11 +9,41 @@ cd "$(dirname "$0")/.."
 
 docker compose build
 
+cleanup() {
+  docker compose --profile vulnerable down --volumes --remove-orphans >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
 set +e
 docker compose run --rm verify
 rc=$?
 set -e
+[ "$rc" -eq 0 ] || exit "$rc"
 
 docker compose down --volumes --remove-orphans
 
-exit "$rc"
+# Profile alone is insufficient: without the explicit acknowledgement the app must fail closed.
+# The variable is pinned explicitly so a leaky parent environment can never satisfy the gate.
+set +e
+ALLOW_VULNERABLE_DEMO=false docker compose --profile vulnerable run --rm --no-deps vulnerable
+gate_rc=$?
+set -e
+if [ "$gate_rc" -eq 0 ]; then
+  echo "vulnerable service started without ALLOW_VULNERABLE_DEMO=true" >&2
+  exit 1
+fi
+
+docker compose --profile vulnerable down --volumes --remove-orphans
+
+# Environment acknowledgement alone is insufficient: without the vulnerable profile the
+# service must not exist in the compose project at all. (docker compose run would auto-activate
+# the named service's profile, so presence is asserted on the project definition instead.)
+if docker compose config --services 2>/dev/null | grep -qx 'vulnerable'; then
+  echo "vulnerable service is present without the vulnerable profile" >&2
+  exit 1
+fi
+
+# With both deliberate actions, exercise the real vulnerable boundary.
+ALLOW_VULNERABLE_DEMO=true docker compose --profile vulnerable run --rm verify-vulnerable
+
+cleanup
