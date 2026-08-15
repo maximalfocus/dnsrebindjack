@@ -38,6 +38,15 @@ def _selected_fetcher() -> Callable[[str], FetchResult]:
         from dnsrebindjack.app.vulnerable import vulnerable_fetch
 
         return vulnerable_fetch
+    if variant == "half-fixed":
+        if os.environ.get("ALLOW_VULNERABLE_DEMO") != "true":
+            raise RuntimeError(
+                "half-fixed variant requires the half-fixed Compose profile and "
+                "ALLOW_VULNERABLE_DEMO=true"
+            )
+        from dnsrebindjack.app.halffixed import half_fixed_fetch
+
+        return half_fixed_fetch
     raise RuntimeError(f"unsupported APP_VARIANT: {variant}")
 
 
@@ -126,6 +135,7 @@ def probe_target(
         connected_ip=result.connected_ip,
         http_status=result.http_status,
         rejection_class=result.rejection_class,
+        guard=result.guard,
     )
     return ProbeView(
         id=record.id,

@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.."
 docker compose build
 
 cleanup() {
-  docker compose --profile vulnerable down --volumes --remove-orphans >/dev/null 2>&1 || true
+  docker compose --profile vulnerable --profile half-fixed down --volumes --remove-orphans >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -45,5 +45,24 @@ fi
 
 # With both deliberate actions, exercise the real vulnerable boundary.
 ALLOW_VULNERABLE_DEMO=true docker compose --profile vulnerable run --rm verify-vulnerable
+
+docker compose --profile vulnerable down --volumes --remove-orphans
+
+# Half-fixed variant: same two opt-in actions, same fail-closed gates.
+set +e
+ALLOW_VULNERABLE_DEMO=false docker compose --profile half-fixed run --rm --no-deps half-fixed
+gate_half_rc=$?
+set -e
+if [ "$gate_half_rc" -eq 0 ]; then
+  echo "half-fixed service started without ALLOW_VULNERABLE_DEMO=true" >&2
+  exit 1
+fi
+
+if docker compose config --services 2>/dev/null | grep -qx 'half-fixed'; then
+  echo "half-fixed service is present without the half-fixed profile" >&2
+  exit 1
+fi
+
+ALLOW_VULNERABLE_DEMO=true docker compose --profile half-fixed run --rm verify-half-fixed
 
 cleanup

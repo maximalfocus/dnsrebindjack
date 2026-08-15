@@ -29,6 +29,7 @@ def emit_probe_event(
     connected_ip: str | None,
     http_status: int | None,
     rejection_class: str | None,
+    guard: str | None = None,
 ) -> dict[str, object]:
     """Emit and return one probe audit event (returned and retained for testability)."""
     request_id = str(
@@ -44,6 +45,7 @@ def emit_probe_event(
         "connected_ip": connected_ip,
         "http_status": http_status,
         "rejection_class": rejection_class,
+        "guard": guard,
     }
     print(json.dumps(event), flush=True)
     _RECENT.append(event)
