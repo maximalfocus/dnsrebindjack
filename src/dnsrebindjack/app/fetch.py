@@ -55,7 +55,7 @@ def resolve_ipv4(host: str) -> str:
     return socket.gethostbyname(host)
 
 
-def _parse_target(url: str) -> SplitResult:
+def parse_target(url: str) -> SplitResult:
     parsed = urlsplit(url)
     if parsed.scheme not in {"http", "https"} or parsed.hostname is None:
         raise ValueError("target must be an absolute HTTP(S) URL")
@@ -95,7 +95,7 @@ def secure_fetch(
 ) -> FetchResult:
     """Fetch ``url`` without a hostname-resolution time-of-check/time-of-use gap."""
     try:
-        parsed = _parse_target(url)
+        parsed = parse_target(url)
         host = parsed.hostname
         assert host is not None
         validated_ip = resolver(host)

@@ -51,6 +51,33 @@ services:
       <<: *health
       test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/healthz', timeout=2).status == 200 else 1)"]
 
+  # Intentionally vulnerable and never part of the default service set. Starting it requires both
+  # `--profile vulnerable` and the explicit environment acknowledgement checked by the app.
+  vulnerable:
+    <<: *app
+    profiles: ["vulnerable"]
+    command: ["uvicorn", "dnsrebindjack.app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+    environment:
+      APP_VARIANT: vulnerable
+      ALLOW_VULNERABLE_DEMO: "${ALLOW_VULNERABLE_DEMO:-false}"
+    dns:
+      - 10.10.0.53
+    ports:
+      - "127.0.0.1:8081:8080"
+    depends_on:
+      resolver:
+        condition: service_healthy
+      internal-service:
+        condition: service_healthy
+      upstream:
+        condition: service_healthy
+    networks:
+      - internal_net
+      - edge
+    healthcheck:
+      <<: *health
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/healthz', timeout=2).status == 200 else 1)"]
+
   # Demo-owned controllable authoritative resolver: the app's ONLY DNS. It answers DNS on :53
   # (udp + tcp) and exposes an observation/control HTTP API on :8053. For the attacker name it
   # returns an allowed public-range address on the first (validation) lookup and an internal
@@ -106,6 +133,19 @@ services:
       upstream:
         condition: service_healthy
       secure:
+        condition: service_healthy
+    networks:
+      - internal_net
+      - edge
+
+  verify-vulnerable:
+    <<: *app
+    profiles: ["vulnerable"]
+    command: ["pytest", "-q", "tests/test_vulnerable_topology.py"]
+    environment:
+      RUN_VULNERABLE_TOPOLOGY: "true"
+    depends_on:
+      vulnerable:
         condition: service_healthy
     networks:
       - internal_net
