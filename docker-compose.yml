@@ -189,3 +189,22 @@ services:
     networks:
       - internal_net
       - edge
+
+  # The deterministic three-variant comparison runner (scripts/demo.sh drives it). Its own
+  # `demo` profile keeps it out of every other compose invocation; demo.sh activates it together
+  # with the two opt-in variant profiles so the whole demo starts: secure (default) plus the two
+  # profile-gated variants, against fresh fixture state.
+  runner:
+    <<: *app
+    profiles: ["demo"]
+    command: ["python", "-m", "dnsrebindjack.demo.compare"]
+    depends_on:
+      secure:
+        condition: service_healthy
+      vulnerable:
+        condition: service_healthy
+      half-fixed:
+        condition: service_healthy
+    networks:
+      - internal_net
+      - edge

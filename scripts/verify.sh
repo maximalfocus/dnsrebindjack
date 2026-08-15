@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.."
 docker compose build
 
 cleanup() {
-  docker compose --profile vulnerable --profile half-fixed down --volumes --remove-orphans >/dev/null 2>&1 || true
+  docker compose --profile demo --profile vulnerable --profile half-fixed down --volumes --remove-orphans >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -64,5 +64,8 @@ if docker compose config --services 2>/dev/null | grep -qx 'half-fixed'; then
 fi
 
 ALLOW_VULNERABLE_DEMO=true docker compose --profile half-fixed run --rm verify-half-fixed
+
+# The deterministic three-variant comparison — the same boundary local verification and CI share.
+bash scripts/demo.sh
 
 cleanup
