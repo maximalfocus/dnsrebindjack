@@ -23,6 +23,7 @@ class FetchResult:
     http_status: int | None = None
     body: str | None = None
     rejection_class: str | None = None
+    guard: str | None = None
 
 
 class _PinnedHTTPConnection(http.client.HTTPConnection):
