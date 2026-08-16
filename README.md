@@ -10,9 +10,14 @@ different resolutions of the same name, and the attacker controls what changes i
 > **Local-only educational material.** This project ships **no working exploit**, contacts **no
 > real system**, uses **no real DNS**, and performs **no network access outside its own internal
 > container network**. Every user, tenant, token, hostname, and address is fictional and drawn
-> from reserved documentation ranges (RFC 2606 `.example`, RFC 5737 `203.0.113.0/24`,
-> RFC 1918 private space). The intentionally-vulnerable variants are gated behind two deliberate
-> opt-in actions and are never the default.
+> from reserved documentation ranges (RFC 2606 `.example`; RFC 5737 `203.0.113.0/24`,
+> `198.51.100.0/24`, `192.0.2.0/24`; RFC 3849 `2001:db8::/32`; RFC 1918 private space). The
+> intentionally-vulnerable variants are gated behind two deliberate opt-in actions and are never
+> the default.
+>
+> It is **not hosted** (there is no deployed instance or public endpoint), **not published** as a
+> package or container image, and **not intended for production use**. It runs only on your own
+> machine, under Docker, for as long as you are reading it. See [`SECURITY.md`](SECURITY.md).
 
 ## What this demo teaches
 
@@ -268,3 +273,13 @@ per-variant checks, the opt-in startup gates, and the scripted comparison — in
 ```sh
 bash scripts/verify.sh
 ```
+
+## Security policy
+
+The vulnerable and half-fixed variants are **intentional** teaching artifacts, not defects. For what
+counts as a genuine, unintended vulnerability here and how to report one privately, see
+[`SECURITY.md`](SECURITY.md).
+
+## License
+
+[MIT](LICENSE).

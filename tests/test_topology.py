@@ -127,6 +127,8 @@ def test_no_real_dns_for_unknown_names() -> None:
 
 
 def test_no_public_egress() -> None:
-    # Both fixture networks are `internal: true`, so there is no route off-network.
+    # Both fixture networks are `internal: true`, so there is no route off-network. The probe
+    # target is a reserved documentation address (RFC 5737 TEST-NET-2) outside both fixture
+    # subnets, so reaching it would require egress — without naming a real third-party service.
     with pytest.raises((httpx.ConnectError, httpx.ConnectTimeout)):
-        httpx.get("http://8.8.8.8/", timeout=2)
+        httpx.get("http://198.51.100.1/", timeout=2)

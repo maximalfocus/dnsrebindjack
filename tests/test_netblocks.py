@@ -31,7 +31,9 @@ def test_private_loopback_linklocal_cgnat_and_unspecified_blocked() -> None:
 
 
 def test_public_addresses_not_blocked() -> None:
-    for ip in ("8.8.8.8", "93.184.216.34"):
+    # Reserved documentation addresses (RFC 5737 TEST-NET-2/TEST-NET-1) stand in for ordinary
+    # public targets: outside every blocked range, and not a real host.
+    for ip in ("198.51.100.10", "192.0.2.20"):
         assert not is_blocked(ip)
 
 
@@ -39,4 +41,5 @@ def test_ipv6_ranges() -> None:
     assert is_blocked("::1")
     assert is_blocked("fe80::1")
     assert is_blocked("fc00::1")
-    assert not is_blocked("2606:4700:4700::1111")
+    # RFC 3849 documentation prefix: global-scope IPv6, outside every blocked range.
+    assert not is_blocked("2001:db8::1")
