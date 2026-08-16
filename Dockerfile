@@ -9,7 +9,8 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # Install dependencies first for a cached layer, then install the project itself.
-COPY pyproject.toml uv.lock README.md ./
+# LICENSE is required at build time: pyproject.toml declares it via `license-files`.
+COPY pyproject.toml uv.lock README.md LICENSE ./
 RUN uv sync --frozen --no-install-project
 COPY src ./src
 COPY tests ./tests
